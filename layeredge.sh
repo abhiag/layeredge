@@ -24,6 +24,7 @@ fi
 
 # Install Risc0 Toolchain
 echo "Installing Risc0 Toolchain..."
+rustup toolchain uninstall risc0 2>/dev/null || true
 curl -L https://risczero.com/install | bash
 source $HOME/.cargo/env
 rzup install

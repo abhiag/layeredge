@@ -1,39 +1,78 @@
 #!/bin/bash
 
-# Step 1: Install Dependencies
-echo "Installing dependencies..."
-sudo apt-get update
-sudo apt-get install -y curl git docker docker-compose
-
-# Step 2: Clone the Node Repository
-echo "Cloning the node repository..."
-git clone https://github.com/layeredge/light-node.git
+# Step 1: Clone the Light Node Repository
+echo "Step 1: Cloning the Light Node repository..."
+git clone https://github.com/Layer-Edge/light-node.git
 cd light-node
 
-# Step 3: Build or Download the Node Software
-echo "Building the node software..."
-docker-compose build
+# Step 2: Install Required Dependencies
+echo "Step 2: Installing dependencies..."
 
-# Step 4: Configure the Node
-echo "Configuring the node..."
-# Replace with actual configuration steps (e.g., editing config.toml or .env files)
-cp config.example.toml config.toml
-sed -i 's/PEER_NODES=""/PEER_NODES="node1.example.com,node2.example.com"/' config.toml
-sed -i 's/NETWORK_ID=""/NETWORK_ID="layeredge-mainnet"/' config.toml
+# Install Go (if not already installed)
+if ! command -v go &> /dev/null; then
+    echo "Go is not installed. Installing Go..."
+    sudo apt-get update
+    sudo apt-get install -y golang
+fi
 
-# Step 5: Start the Node
-echo "Starting the light node..."
-docker-compose up -d
+# Install Rust (if not already installed)
+if ! command -v rustc &> /dev/null; then
+    echo "Rust is not installed. Installing Rust..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    source $HOME/.cargo/env
+fi
 
-# Step 6: Check Node Status
-echo "Checking node status..."
-docker-compose logs -f
+# Install Risc0 Toolchain
+echo "Installing Risc0 Toolchain..."
+curl -L https://risczero.com/install | bash && rzup install
 
-# Step 7: Verify Sync Status
-echo "Verifying sync status..."
-# Replace with actual CLI command to check sync status
-docker exec -it light-node-cli layerged status
+# Step 3: Configure Environment Variables
+echo "Step 3: Setting up environment variables..."
+export GRPC_URL=34.31.74.109:9090
+export CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
+export ZK_PROVER_URL=http://127.0.0.1:3001
+export API_REQUEST_TIMEOUT=100
+export POINTS_API=http://127.0.0.1:8080
+export PRIVATE_KEY='cli-node-private-key'
 
-# Step 8: Monitor the Node
-echo "Node is running. Use the following command to monitor logs:"
-echo "docker-compose logs -f"
+# Step 4: Start the Merkle Service
+echo "Step 4: Starting the Merkle service..."
+cd risc0-merkle-service
+cargo build && cargo run &
+MERCLE_PID=$!
+echo "Merkle service started with PID: $MERCLE_PID"
+
+# Wait for Merkle service to initialize
+echo "Waiting for Merkle service to initialize..."
+sleep 10
+
+# Step 5: Build and Run the LayerEdge Light Node
+echo "Step 5: Building and running the Light Node..."
+cd ..
+go build
+./light-node &
+LIGHT_NODE_PID=$!
+echo "Light Node started with PID: $LIGHT_NODE_PID"
+
+# Step 6: Connecting CLI Node with LayerEdge Dashboard
+echo "Step 6: Instructions for connecting CLI Node with LayerEdge Dashboard:"
+echo "1. Fetch Points via CLI:"
+echo "   https://light-node.layeredge.io/api/cli-node/points/{walletAddress}"
+echo "   Replace {walletAddress} with your actual CLI wallet address."
+echo "2. Connect to Dashboard:"
+echo "   - Navigate to dashboard.layeredge.io"
+echo "   - Connect your wallet"
+echo "   - Link your CLI node’s Public Key"
+
+# Step 7: Logging and Monitoring
+echo "Step 7: Logging and Monitoring"
+echo "Use the following commands to monitor logs:"
+echo "Merkle Service Logs: tail -f risc0-merkle-service/logs.txt"
+echo "Light Node Logs: tail -f light-node.log"
+
+# Step 8: Cleanup (Optional)
+echo "Step 8: To stop the services, run:"
+echo "kill $MERCLE_PID"
+echo "kill $LIGHT_NODE_PID"
+
+echo "Setup complete! Your LayerEdge CLI Light Node is now running."

@@ -24,7 +24,14 @@ fi
 
 # Install Risc0 Toolchain
 echo "Installing Risc0 Toolchain..."
-curl -L https://risczero.com/install | bash && rzup install
+curl -L https://risczero.com/install | bash
+source $HOME/.cargo/env
+rzup install
+
+# Verify Risc0 Toolchain Installation
+echo "Verifying Risc0 Toolchain..."
+rustup toolchain list
+rustup default risc0
 
 # Step 3: Configure Environment Variables
 echo "Step 3: Setting up environment variables..."
@@ -38,7 +45,9 @@ export PRIVATE_KEY='cli-node-private-key'
 # Step 4: Start the Merkle Service
 echo "Step 4: Starting the Merkle service..."
 cd risc0-merkle-service
-cargo build && cargo run &
+cargo clean
+cargo build
+cargo run &
 MERCLE_PID=$!
 echo "Merkle service started with PID: $MERCLE_PID"
 
